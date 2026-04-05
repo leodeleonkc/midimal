@@ -11,32 +11,64 @@ midi = adafruit_midi.MIDI(
     out_channel=0
 )
 
-# Four direct input pins
-pins = [board.D2, board.D3, board.D4, board.D5]
-notes = [60, 62, 64, 65]  # C, D, E, F
+# 2x2 matrix pins
+row_pins = [board.D2, board.D3]
+col_pins = [board.D6, board.D7]
 
-buttons = []
-last_states = []
+# MIDI notes for each matrix position
+# [row][col]
+notes = [
+    [60, 62],  # row 0: C, D
+    [64, 65],  # row 1: E, F
+]
 
-for pin in pins:
-    btn = digitalio.DigitalInOut(pin)
-    btn.direction = digitalio.Direction.INPUT
-    btn.pull = digitalio.Pull.UP
-    buttons.append(btn)
-    last_states.append(True)
+rows = []
+cols = []
+
+# Set up rows as outputs, idle HIGH
+for pin in row_pins:
+    row = digitalio.DigitalInOut(pin)
+    row.direction = digitalio.Direction.OUTPUT
+    row.value = True
+    rows.append(row)
+
+# Set up columns as inputs with pull-up
+for pin in col_pins:
+    col = digitalio.DigitalInOut(pin)
+    col.direction = digitalio.Direction.INPUT
+    col.pull = digitalio.Pull.UP
+    cols.append(col)
+
+# Track pressed state per matrix position
+last_states = [
+    [False, False],
+    [False, False]
+]
 
 while True:
-    for i, button in enumerate(buttons):
-        current_state = button.value
+    for r, row in enumerate(rows):
+        # Set all rows HIGH first
+        for rr in rows:
+            rr.value = True
 
-        if last_states[i] and not current_state:
-            midi.send(NoteOn(notes[i], 100))
-            print(f"NOTE ON {notes[i]}")
+        # Activate current row
+        row.value = False
 
-        elif not last_states[i] and current_state:
-            midi.send(NoteOff(notes[i], 0))
-            print(f"NOTE OFF {notes[i]}")
+        # Tiny settling delay
+        time.sleep(0.001)
 
-        last_states[i] = current_state
+        for c, col in enumerate(cols):
+            pressed = not col.value
+            note = notes[r][c]
 
-    time.sleep(0.01)
+            if pressed and not last_states[r][c]:
+                midi.send(NoteOn(note, 100))
+                print(f"NOTE ON row={r} col={c} note={note}")
+
+            elif not pressed and last_states[r][c]:
+                midi.send(NoteOff(note, 0))
+                print(f"NOTE OFF row={r} col={c} note={note}")
+
+            last_states[r][c] = pressed
+
+    time.sleep(0.005)
