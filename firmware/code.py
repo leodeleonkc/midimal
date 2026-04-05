@@ -11,22 +11,32 @@ midi = adafruit_midi.MIDI(
     out_channel=0
 )
 
-button = digitalio.DigitalInOut(board.D2)
-button.direction = digitalio.Direction.INPUT
-button.pull = digitalio.Pull.UP
+# Four direct input pins
+pins = [board.D2, board.D3, board.D4, board.D5]
+notes = [60, 62, 64, 65]  # C, D, E, F
 
-last_state = True
+buttons = []
+last_states = []
+
+for pin in pins:
+    btn = digitalio.DigitalInOut(pin)
+    btn.direction = digitalio.Direction.INPUT
+    btn.pull = digitalio.Pull.UP
+    buttons.append(btn)
+    last_states.append(True)
 
 while True:
-    current_state = button.value
+    for i, button in enumerate(buttons):
+        current_state = button.value
 
-    if last_state and not current_state:
-        midi.send(NoteOn(60, 100))
-        print("NOTE ON")
+        if last_states[i] and not current_state:
+            midi.send(NoteOn(notes[i], 100))
+            print(f"NOTE ON {notes[i]}")
 
-    elif not last_state and current_state:
-        midi.send(NoteOff(60, 0))
-        print("NOTE OFF")
+        elif not last_states[i] and current_state:
+            midi.send(NoteOff(notes[i], 0))
+            print(f"NOTE OFF {notes[i]}")
 
-    last_state = current_state
+        last_states[i] = current_state
+
     time.sleep(0.01)
