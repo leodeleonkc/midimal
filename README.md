@@ -29,6 +29,16 @@ MIDIMAL is designed to be:
 * [x] Multi-input (4 direct pins)
 * [x] Matrix scanning (2x2 test)
 
+### Accomplished today (4/4/26)
+- [x] Verified KB2040 setup with CircuitPython
+- [x] Confirmed USB MIDI output into a software synth
+- [x] Tested single-input note triggering
+- [x] Tested 4 direct inputs with clean note triggering
+- [x] Built and validated 2x2 matrix scan logic
+- [x] Added scale-based note mapping
+- [x] Added transpose and octave shift logic
+- [x] Simulated encoder interaction logic before testing with real hardware
+
 ### In Progress
 
 * [ ] Full 4x4 matrix implementation
@@ -76,6 +86,8 @@ MIDIMAL is designed to be:
 ---
 
 ## 💻 Firmware
+
+Current firmware development is focused on validating the musical interaction model before full hardware assembly.
 
 * Language: CircuitPython
 * MIDI: USB class-compliant MIDI

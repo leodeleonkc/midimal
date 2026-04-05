@@ -11,64 +11,68 @@ midi = adafruit_midi.MIDI(
     out_channel=0
 )
 
-# 2x2 matrix pins
-row_pins = [board.D2, board.D3]
-col_pins = [board.D6, board.D7]
+ROOT_NOTE = 60
+TRANSPOSE = 0
+OCTAVE_SHIFT = 0
 
-# MIDI notes for each matrix position
-# [row][col]
-notes = [
-    [60, 62],  # row 0: C, D
-    [64, 65],  # row 1: E, F
-]
+# Encoder simulation
+sim_left = digitalio.DigitalInOut(board.A0)
+sim_left.direction = digitalio.Direction.INPUT
+sim_left.pull = digitalio.Pull.UP
 
-rows = []
-cols = []
+sim_right = digitalio.DigitalInOut(board.A1)
+sim_right.direction = digitalio.Direction.INPUT
+sim_right.pull = digitalio.Pull.UP
 
-# Set up rows as outputs, idle HIGH
-for pin in row_pins:
-    row = digitalio.DigitalInOut(pin)
-    row.direction = digitalio.Direction.OUTPUT
-    row.value = True
-    rows.append(row)
+sim_hold = digitalio.DigitalInOut(board.A2)
+sim_hold.direction = digitalio.Direction.INPUT
+sim_hold.pull = digitalio.Pull.UP
 
-# Set up columns as inputs with pull-up
-for pin in col_pins:
-    col = digitalio.DigitalInOut(pin)
-    col.direction = digitalio.Direction.INPUT
-    col.pull = digitalio.Pull.UP
-    cols.append(col)
+# Test note trigger (use D2)
+test_button = digitalio.DigitalInOut(board.D2)
+test_button.direction = digitalio.Direction.INPUT
+test_button.pull = digitalio.Pull.UP
 
-# Track pressed state per matrix position
-last_states = [
-    [False, False],
-    [False, False]
-]
+last_button = True
+
+def clamp(value, min_value, max_value):
+    return max(min_value, min(max_value, value))
+
+def current_note():
+    return ROOT_NOTE + TRANSPOSE + (OCTAVE_SHIFT * 12)
 
 while True:
-    for r, row in enumerate(rows):
-        # Set all rows HIGH first
-        for rr in rows:
-            rr.value = True
+    hold_active = not sim_hold.value
 
-        # Activate current row
-        row.value = False
+    if not sim_left.value:
+        if hold_active:
+            OCTAVE_SHIFT = clamp(OCTAVE_SHIFT - 1, -2, 2)
+            print("OCTAVE_SHIFT =", OCTAVE_SHIFT)
+        else:
+            TRANSPOSE = clamp(TRANSPOSE - 1, -12, 12)
+            print("TRANSPOSE =", TRANSPOSE)
+        time.sleep(0.25)
 
-        # Tiny settling delay
-        time.sleep(0.001)
+    if not sim_right.value:
+        if hold_active:
+            OCTAVE_SHIFT = clamp(OCTAVE_SHIFT + 1, -2, 2)
+            print("OCTAVE_SHIFT =", OCTAVE_SHIFT)
+        else:
+            TRANSPOSE = clamp(TRANSPOSE + 1, -12, 12)
+            print("TRANSPOSE =", TRANSPOSE)
+        time.sleep(0.25)
 
-        for c, col in enumerate(cols):
-            pressed = not col.value
-            note = notes[r][c]
+    # Test note trigger
+    current_state = test_button.value
 
-            if pressed and not last_states[r][c]:
-                midi.send(NoteOn(note, 100))
-                print(f"NOTE ON row={r} col={c} note={note}")
+    if last_button and not current_state:
+        midi.send(NoteOn(current_note(), 100))
+        print("NOTE ON", current_note())
 
-            elif not pressed and last_states[r][c]:
-                midi.send(NoteOff(note, 0))
-                print(f"NOTE OFF row={r} col={c} note={note}")
+    elif not last_button and current_state:
+        midi.send(NoteOff(current_note(), 0))
+        print("NOTE OFF", current_note())
 
-            last_states[r][c] = pressed
+    last_button = current_state
 
-    time.sleep(0.005)
+    time.sleep(0.01)
