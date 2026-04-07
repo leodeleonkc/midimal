@@ -19,7 +19,8 @@ MIDIMAL is designed to be:
 
 ## 🚧 Project Status
 
-**Current Stage:** Firmware + Prototyping
+**Current Stage:** Firmware + Hardware Prototyping (Active Breadboard Build)
+
 
 ### Completed
 
@@ -28,6 +29,9 @@ MIDIMAL is designed to be:
 * [x] Single input → MIDI note
 * [x] Multi-input (4 direct pins)
 * [x] Matrix scanning (2x2 test)
+* [x] Full 4x4 matrix wiring (16 keys)
+* [x] Hardware-validated matrix scanning (no ghosting)
+* [x] Working MIDI output from full matrix
 
 ### Accomplished today (4/4/26)
 - [x] Verified KB2040 setup with CircuitPython
@@ -39,11 +43,21 @@ MIDIMAL is designed to be:
 - [x] Added transpose and octave shift logic
 - [x] Simulated encoder interaction logic before testing with real hardware
 
+### Accomplished today (4/7/26)
+
+- [x] Built full 4x4 key matrix (16 switches + diodes)
+- [x] Validated matrix scanning across all rows and columns
+- [x] Confirmed multi-key input behavior (no ghosting)
+- [x] Debugged and resolved CircuitPython library dependency issues
+- [x] Established reliable firmware sync workflow (repo → board)
+- [x] Identified and corrected diode orientation behavior in hardware
+- [x] Implemented alternate scan logic to match current wiring
+- [x] Fully playable MIDI grid confirmed (tested with Vital 🎛️)
+
 ### In Progress
 
-* [ ] Full 4x4 matrix implementation
-* [ ] Scale + note mapping system
-* [ ] Encoder integration
+* [ ] Integrate scale + note mapping into matrix scan
+* [ ] Encoder hardware integration
 * [ ] OLED UI system
 
 ### Planned
@@ -171,3 +185,5 @@ This project is in early development, but ideas and feedback are welcome.
 ## 📜 License
 
 TBD
+
+./sync_to_board.sh
