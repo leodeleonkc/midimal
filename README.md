@@ -54,9 +54,46 @@ MIDIMAL is designed to be:
 - [x] Implemented alternate scan logic to match current wiring
 - [x] Fully playable MIDI grid confirmed (tested with Vital 🎛️)
 
+Part II
+
+- [x] Integrated and tuned **rotary encoder behavior** (transpose, octave shift, scale select)  
+- [x] Implemented **long-press scale selection mode** with smooth interaction flow  
+- [x] Fully wired and configured **SH1106 OLED (SPI)** display  
+- [x] Resolved OLED alignment issues using correct **132px width configuration**  
+- [x] Designed and implemented **startup splash screen** with animated mascot (blinking stars)  
+- [x] Created and refined **MIDIMAL mascot** (pixel-art keyboard character)  
+- [x] Built custom **HUD interface** with:  
+  - scale display  
+  - transpose and octave sections  
+  - divider layout and border system  
+- [x] Optimized HUD rendering for **performance (eliminated slow redraw/wipe effects)**  
+- [x] Implemented clean **scale-select visual feedback** (arrow indicator)  
+- [x] Fixed **UI alignment and spacing issues** across all elements  
+- [x] Implemented **display idle sleep system** with instant wake on interaction  
+- [x] Improved development workflow by updating **sync script to include asset files (BMPs)**  
+- [x] Recovered and stabilized board behavior after firmware/reset issues  
+- [x] Achieved fully playable, responsive **instrument prototype with visual feedback**
+- [x] Refactored encoder logic into **state-based interaction model** (eliminated timing conflicts)  
+- [x] Implemented **latched octave adjustment session** (hold + rotate behaves consistently)  
+- [x] Replaced native encoder handling with **quadrature edge filtering** (stable, jitter-free input)  
+- [x] Removed blocking delays and improved **input responsiveness and reliability**  
+- [x] Added **contextual UI indicators** for active controls (transpose + octave arrows)  
+- [x] Implemented **time-based transpose indicator** with automatic fade-out  
+- [x] Improved display update system to respond to **state + time changes (not just input events)**  
+- [x] Added **root note system** with dynamic key shifting (C → C# → D, etc.)  
+- [x] Integrated root display into HUD (`C PENTATONIC`, etc.) for immediate feedback  
+- [x] Implemented **gesture-based root shifting** (hold encoder + corner keys)  
+- [x] Merged scale + root into unified **held edit session (intent-based interaction model)**  
+- [x] Replaced long-press timing dependency with **action-driven mode switching**  
+- [x] Designed and implemented **dual-mode encoder behavior**:  
+  - quick twist → octave  
+  - slight hold → scale/root session  
+- [x] Eliminated interaction conflicts between **scale, root, and octave controls**  
+- [x] Validated real-world use case: **play-along workflow (find root + jam instantly)**
+
 ### In Progress
 
-* [ ] Integrate scale + note mapping into matrix scan
+* [ ] Real life use case testing
 * [ ] Encoder hardware integration
 * [ ] OLED UI system
 
