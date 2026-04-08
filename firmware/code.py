@@ -1,4 +1,5 @@
 import time
+import json
 import board
 import digitalio
 import usb_midi
@@ -24,6 +25,7 @@ ROOT_NOTE = 60
 TRANSPOSE = 0
 OCTAVE_SHIFT = 0
 IDLE_TIMEOUT = 600  # seconds
+chord_mode = False
 
 last_activity_time = time.monotonic()
 display_on = True
@@ -48,10 +50,83 @@ NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 def root_note_name():
     return NOTE_NAMES[ROOT_NOTE % 12]
 
+SETTINGS_FILE = "/midimal_settings.json"
+SETTINGS_SAVE_DELAY = 0.4
+
+settings_dirty = False
+settings_save_at = 0
+
+def mark_settings_dirty():
+    global settings_dirty, settings_save_at
+    settings_dirty = True
+    settings_save_at = time.monotonic() + SETTINGS_SAVE_DELAY
+
+def save_settings():
+    global settings_dirty
+
+    data = {
+        "root_note": ROOT_NOTE,
+        "scale_index": active_scale_index,
+        "transpose": TRANSPOSE,
+        "octave_shift": OCTAVE_SHIFT,
+        "chord_mode": chord_mode,
+    }
+
+    try:
+        with open(SETTINGS_FILE, "w") as f:
+            json.dump(data, f)
+        settings_dirty = False
+    except OSError as e:
+        print("SAVE SETTINGS DISABLED:", e)
+        settings_dirty = False
+    except Exception as e:
+        print("SAVE SETTINGS ERROR:", e)
+        settings_dirty = False
+
+def load_settings():
+    global ROOT_NOTE, active_scale_index, TRANSPOSE, OCTAVE_SHIFT, chord_mode
+
+    try:
+        with open(SETTINGS_FILE, "r") as f:
+            data = json.load(f)
+
+        ROOT_NOTE = int(data.get("root_note", 60))
+        active_scale_index = clamp(int(data.get("scale_index", 2)), 0, len(SCALE_ORDER) - 1)
+        TRANSPOSE = clamp(int(data.get("transpose", 0)), -12, 12)
+        OCTAVE_SHIFT = clamp(int(data.get("octave_shift", 0)), -2, 2)
+        chord_mode = bool(data.get("chord_mode", False))
+
+        print("SETTINGS LOADED")
+    except OSError:
+        print("No saved settings found, using defaults")
+    except Exception as e:
+        print("LOAD SETTINGS ERROR:", e)
+
 def shift_root(direction):
     global ROOT_NOTE
     ROOT_NOTE = 60 + ((ROOT_NOTE - 60 + direction) % 12)
     print("ROOT_NOTE =", root_note_name(), ROOT_NOTE)
+    mark_settings_dirty()
+    update_display()
+
+def reset_to_defaults():
+    global ROOT_NOTE, active_scale_index, TRANSPOSE, OCTAVE_SHIFT, chord_mode
+
+    ROOT_NOTE = 60
+    active_scale_index = 2   # pentatonic
+    TRANSPOSE = 0
+    OCTAVE_SHIFT = 0
+    chord_mode = False
+
+    print("RESET TO DEFAULTS")
+    mark_settings_dirty()
+    update_display()
+
+def toggle_chord_mode():
+    global chord_mode
+    chord_mode = not chord_mode
+    print("CHORD_MODE =", chord_mode)
+    mark_settings_dirty()
     update_display()
 
 active_scale_index = 2  # pentatonic default
@@ -70,9 +145,18 @@ def get_scale_note(index):
     degree = index % scale_len
     return ROOT_NOTE + scale[degree] + (octave * 12) + TRANSPOSE + (OCTAVE_SHIFT * 12)
 
-def current_note(row, col):
+def get_chord_notes(index):
+    return [
+        get_scale_note(index),
+        get_scale_note(index + 2),
+        get_scale_note(index + 4),
+    ]
+
+def current_notes(row, col):
     note_index = (row * 4) + col
-    return get_scale_note(note_index)
+    if chord_mode:
+        return get_chord_notes(note_index)
+    return [get_scale_note(note_index)]
 
 def mark_activity():
     global last_activity_time, display_on
@@ -211,7 +295,7 @@ def draw_static_hud():
     draw_hline(hud_bitmap, 10, 24, 108, 1, dotted=True)
 
     # Center divider with balanced spacing
-    draw_vline(hud_bitmap, 70, 30, 24, 1, dotted=True)
+    draw_vline(hud_bitmap, 57, 30, 24, 1, dotted=True)
 
 draw_static_hud()
 
@@ -232,49 +316,41 @@ scale_arrow = label.Label(
 )
 splash.append(scale_arrow)
 
-# Section labels
-transpose_title = label.Label(
+chord_label = label.Label(
     terminalio.FONT,
-    text="TRANSPOSE",
-    color=0xFFFFFF,
-    x=10,
-    y=35
+    text=" c ",
+    color=0x000000,
+    x=0,
+    y=12,
+    background_color=0xFFFFFF
 )
-splash.append(transpose_title)
+splash.append(chord_label)
 
+# Section labels
 octave_title = label.Label(
     terminalio.FONT,
     text="OCTAVE",
     color=0xFFFFFF,
-    x=80,
+    x=14,
     y=35
 )
 splash.append(octave_title)
 
-# Values — normal size now
-transpose_value = label.Label(
+transpose_title = label.Label(
     terminalio.FONT,
-    text="+0",
+    text="TRANSPOSE",
     color=0xFFFFFF,
-    x=24,
-    y=49
+    x=65,
+    y=35
 )
-splash.append(transpose_value)
+splash.append(transpose_title)
 
-transpose_arrow = label.Label(
-    terminalio.FONT,
-    text="",
-    color=0xFFFFFF,
-    x=14,   # slightly left of transpose_value
-    y=49
-)
-splash.append(transpose_arrow)
-
+# Values
 octave_value = label.Label(
     terminalio.FONT,
     text="+0",
     color=0xFFFFFF,
-    x=92,
+    x=20,
     y=49
 )
 splash.append(octave_value)
@@ -283,10 +359,28 @@ octave_arrow = label.Label(
     terminalio.FONT,
     text="",
     color=0xFFFFFF,
-    x=80,   # will be dynamically updated
+    x=10,
     y=49
 )
 splash.append(octave_arrow)
+
+transpose_value = label.Label(
+    terminalio.FONT,
+    text="+0",
+    color=0xFFFFFF,
+    x=72,
+    y=49
+)
+splash.append(transpose_value)
+
+transpose_arrow = label.Label(
+    terminalio.FONT,
+    text="",
+    color=0xFFFFFF,
+    x=60,
+    y=49
+)
+splash.append(transpose_arrow)
 
 show_startup_splash()
 display.root_group = splash
@@ -297,6 +391,7 @@ last_display_octave = None
 last_display_scale_mode = None
 last_display_octave_active = None
 last_display_transpose_active = None
+last_display_chord_mode = None
 
 scale_mode = False
 octave_adjust_active = False
@@ -309,14 +404,19 @@ def update_display(force=False):
     global last_display_scale_mode
     global last_display_octave_active
     global last_display_transpose_active
+    global last_display_chord_mode
+    global chord_mode
 
     base_scale_name = DISPLAY_SCALE_NAMES[active_scale_name()].upper()
     scale_text = f"{root_note_name()} {base_scale_name}"
     transpose_text = f"{TRANSPOSE:+d}"
     octave_text = f"{OCTAVE_SHIFT:+d}"
 
-    transpose_active = time.monotonic() < transpose_indicator_until
-    octave_active = octave_adjust_active
+    # Normal rotate changes octave, so the timed indicator belongs to octave.
+    octave_active = time.monotonic() < transpose_indicator_until
+
+    # Click + rotate changes transpose, so the held-session indicator belongs to transpose.
+    transpose_active = octave_adjust_active
 
     if (
         force
@@ -326,6 +426,7 @@ def update_display(force=False):
         or scale_mode != last_display_scale_mode
         or octave_active != last_display_octave_active
         or transpose_active != last_display_transpose_active
+        or chord_mode != last_display_chord_mode
     ):
         scale_label.text = scale_text
         scale_label.x = (VISIBLE_W - (len(scale_text) * 6)) // 2
@@ -335,19 +436,16 @@ def update_display(force=False):
         scale_arrow.x = scale_label.x - 10
         scale_arrow.y = 14
 
-        transpose_value.text = transpose_text
-        transpose_value.x = 29
-        transpose_value.y = 49
-
-        if transpose_active:
-            transpose_arrow.text = ">"
-            transpose_arrow.x = transpose_value.x - 10
-            transpose_arrow.y = transpose_value.y
+        if chord_mode:
+            chord_label.hidden = False
+            chord_label.x = scale_label.x + (len(scale_label.text) * 6) + 4
+            chord_label.y = 14
         else:
-            transpose_arrow.text = ""
+            chord_label.hidden = True
 
+        # Left side = OCTAVE
         octave_value.text = octave_text
-        octave_value.x = 90
+        octave_value.x = 25
         octave_value.y = 49
 
         if octave_active:
@@ -357,13 +455,27 @@ def update_display(force=False):
         else:
             octave_arrow.text = ""
 
+        # Right side = TRANSPOSE
+        transpose_value.text = transpose_text
+        transpose_value.x = 82
+        transpose_value.y = 49
+
+        if transpose_active:
+            transpose_arrow.text = ">"
+            transpose_arrow.x = transpose_value.x - 10
+            transpose_arrow.y = transpose_value.y
+        else:
+            transpose_arrow.text = ""
+
         last_display_scale = scale_text
         last_display_transpose = TRANSPOSE
         last_display_octave = OCTAVE_SHIFT
         last_display_scale_mode = scale_mode
         last_display_octave_active = octave_active
         last_display_transpose_active = transpose_active
+        last_display_chord_mode = chord_mode
 
+load_settings()
 update_display(force=True)
 
 # ---------------------------------
@@ -397,10 +509,10 @@ last_states = [
 ]
 
 active_notes = [
-    [None, None, None, None],
-    [None, None, None, None],
-    [None, None, None, None],
-    [None, None, None, None],
+    [[], [], [], []],
+    [[], [], [], []],
+    [[], [], [], []],
+    [[], [], [], []],
 ]
 
 # ---------------------------------
@@ -428,6 +540,8 @@ encoder_rotated_while_pressed = False
 button_used_with_key = False
 root_down_latched = False
 root_up_latched = False
+reset_latched = False
+chord_latched = False
 
 mark_activity()
 
@@ -439,9 +553,6 @@ print("ACTIVE_SCALE =", active_scale_name())
 # ---------------------------------
 SESSION_HOLD_TIME = 0.5
 
-# ---------------------------------
-# Main loop
-# ---------------------------------
 while True:
     now = time.monotonic()
 
@@ -456,6 +567,8 @@ while True:
         button_used_with_key = False
         root_down_latched = False
         root_up_latched = False
+        reset_latched = False
+        chord_latched = False
         mark_activity()
 
     elif not sw_pressed and not last_sw:
@@ -469,6 +582,12 @@ while True:
         button_used_with_key = False
         root_down_latched = False
         root_up_latched = False
+        reset_latched = False
+        chord_latched = False
+
+        if settings_dirty:
+            save_settings()
+
         update_display()
 
     last_sw = enc_sw.value
@@ -514,24 +633,28 @@ while True:
             if scale_mode:
                 active_scale_index = (active_scale_index + direction) % len(SCALE_ORDER)
                 print("ACTIVE_SCALE =", active_scale_name())
-                update_display()
-
-            elif sw_pressed and button_press_time is not None and (now - button_press_time) < SESSION_HOLD_TIME:
-                encoder_rotated_while_pressed = True
-                octave_adjust_active = True
-                OCTAVE_SHIFT = clamp(OCTAVE_SHIFT + direction, -2, 2)
-                print("OCTAVE_SHIFT =", OCTAVE_SHIFT)
+                mark_settings_dirty()
                 update_display()
 
             elif octave_adjust_active:
-                OCTAVE_SHIFT = clamp(OCTAVE_SHIFT + direction, -2, 2)
-                print("OCTAVE_SHIFT =", OCTAVE_SHIFT)
+                TRANSPOSE = clamp(TRANSPOSE + direction, -12, 12)
+                print("TRANSPOSE =", TRANSPOSE)
+                mark_settings_dirty()
+                update_display()
+
+            elif sw_pressed:
+                encoder_rotated_while_pressed = True
+                octave_adjust_active = True
+                TRANSPOSE = clamp(TRANSPOSE + direction, -12, 12)
+                print("TRANSPOSE =", TRANSPOSE)
+                mark_settings_dirty()
                 update_display()
 
             else:
-                TRANSPOSE = clamp(TRANSPOSE + direction, -12, 12)
+                OCTAVE_SHIFT = clamp(OCTAVE_SHIFT + direction, -2, 2)
                 transpose_indicator_until = now + 0.35
-                print("TRANSPOSE =", TRANSPOSE)
+                print("OCTAVE_SHIFT =", OCTAVE_SHIFT)
+                mark_settings_dirty()
                 update_display()
 
     # ---- Matrix scan ----
@@ -542,20 +665,21 @@ while True:
 
             for row_index, row in enumerate(rows):
                 pressed = not row.value
-                note = current_note(row_index, col_index)
+                notes = current_notes(row_index, col_index)
 
                 if pressed and not last_states[row_index][col_index]:
                     mark_activity()
-                    midi.send(NoteOn(note, 100))
-                    active_notes[row_index][col_index] = note
-                    print("NOTE ON", note)
+                    for note in notes:
+                        midi.send(NoteOn(note, 100))
+                        print("NOTE ON", note)
+                    active_notes[row_index][col_index] = notes
 
                 elif not pressed and last_states[row_index][col_index]:
-                    note_off = active_notes[row_index][col_index]
-                    if note_off is not None:
-                        midi.send(NoteOff(note_off, 0))
-                        print("NOTE OFF", note_off)
-                    active_notes[row_index][col_index] = None
+                    notes_off = active_notes[row_index][col_index]
+                    for note in notes_off:
+                        midi.send(NoteOff(note, 0))
+                        print("NOTE OFF", note)
+                    active_notes[row_index][col_index] = []
 
                 last_states[row_index][col_index] = pressed
 
@@ -570,9 +694,10 @@ while True:
 
                 is_root_down_key = (row_index == 0 and col_index == 0)
                 is_root_up_key = (row_index == 0 and col_index == 3)
-                is_root_combo_key = is_root_down_key or is_root_up_key
+                is_reset_key = (row_index == 3 and col_index == 0)
+                is_chord_key = (row_index == 3 and col_index == 3)
 
-                if is_root_combo_key:
+                if is_root_down_key or is_root_up_key or is_reset_key or is_chord_key:
                     if pressed and not last_states[row_index][col_index]:
                         mark_activity()
 
@@ -584,11 +709,23 @@ while True:
                             shift_root(1)
                             root_up_latched = True
 
+                        elif is_reset_key and not reset_latched:
+                            reset_to_defaults()
+                            reset_latched = True
+
+                        elif is_chord_key and not chord_latched:
+                            toggle_chord_mode()
+                            chord_latched = True
+
                     elif not pressed and last_states[row_index][col_index]:
                         if is_root_down_key:
                             root_down_latched = False
                         elif is_root_up_key:
                             root_up_latched = False
+                        elif is_reset_key:
+                            reset_latched = False
+                        elif is_chord_key:
+                            chord_latched = False
 
                     active_notes[row_index][col_index] = None
                     last_states[row_index][col_index] = pressed
@@ -605,6 +742,9 @@ while True:
                 last_states[row_index][col_index] = pressed
 
             col.value = True
+
+    if settings_dirty and now >= settings_save_at:
+        save_settings()
 
     check_idle()
     update_display()
