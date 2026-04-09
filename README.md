@@ -187,7 +187,8 @@ Part II
 * Scale-based play mode (default)
 * Chord mode
 * Transpose + octave shift
-* MIDI channel selection
+* Select root note play mode
+* MIDI channel selection <-- removed feature
 * OLED interface
 * Rotary encoder control
 * LED underglow feedback
@@ -198,15 +199,15 @@ Part II
 
 | Component       | Description              |
 | --------------- | ------------------------ |
-| Microcontroller | Adafruit KB2040          |
-| Switches        | Cherry MX / Gateron      |
-| Diodes          | 1N4148                   |
+| Microcontroller | Adafruit KB2040 x1       |
+| Switches        | Cherry MX / Gateron  x16 |
+| Diodes          | 1N4148 x16               |
 | Display         | 128x64 SH1106 OLED (SPI) |
-| Encoder         | EC11 rotary encoder      |
-| LEDs            | WS2812B (NeoPixel strip) |
-| Level Shifter   | 74AHCT125                |
-| Capacitor       | 1000µF electrolytic      |
-
+| Encoder         | EC11 rotary encoder x1   |
+| LEDs            | WS2812B x4 (pixels)      |
+| Level Shifter   | 74AHCT125  x1            |
+| Capacitor       | 1000µF electrolytic  x1  |
+| Capacitor       | 100nF ceramic x1         |
 ---
 
 ## 💻 Firmware
@@ -227,8 +228,8 @@ Current firmware development is focused on validating the musical interaction mo
 
 Current wiring references for the prototype:
 
-- [Connection schematic](docs/midimal_connection_schematic.png)
-- [KiCad-style netlist draft](docs/midimal_kicad_netlist.md)
+- [Connection schematic](docs/MIDIMAL_clean_schematic.png)
+- [KiCad-style netlist draft](docs/MIDIMAL_kicad_netlist_final.md)
 
 > Note: These are current prototype references and may change as the breadboard build is tested and refined before PCB design.
 
