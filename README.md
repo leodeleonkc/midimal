@@ -91,31 +91,104 @@ Part II
 - [x] Eliminated interaction conflicts between **scale, root, and octave controls**  
 - [x] Validated real-world use case: **play-along workflow (find root + jam instantly)**
 
+### Accomplished today (4/8/26)
+
+[x] Implemented full **state persistence system**
+- [x] Save and restore root note, scale, transpose, octave, and chord mode
+- [x] Added delayed write system to prevent excessive file writes
+- [x] Implemented safe fallback for read-only filesystem (dev mode compatibility)
+- [x] Confirmed persistence works across power cycles
+
+[x] Built **reset-to-defaults gesture**
+- [x] Encoder hold + key press resets:
+  - root → C
+  - scale → pentatonic
+  - transpose → 0
+  - octave → 0
+  - chord mode → OFF
+- [x] Integrated reset into scale/root session workflow
+
+[x] Implemented **chord mode system**
+- [x] Added chord mode toggle via encoder + key press
+- [x] Built chord engine using stacked scale degrees (1–3–5)
+- [x] Ensured compatibility across all scales (major, minor, pentatonic, blues)
+- [x] Updated MIDI engine to support multi-note output per pad
+- [x] Added proper NoteOn/NoteOff handling for chord playback
+
+[x] Designed and integrated **chord mode UI indicator**
+- [x] Added highlighted "c" badge with inverted colors (white background, black text)
+- [x] Positioned dynamically relative to scale label
+- [x] Ensured UI updates correctly with state changes
+- [x] Included chord mode in persistence system
+
+[x] Refined **interaction model and UX consistency**
+- [x] Unified scale + root + chord interactions under a single session model
+- [x] Maintained intuitive, non-menu-based control philosophy
+- [x] Ensured all advanced features are intentional and discoverable
+
+[x] Validated **real-world musical usability**
+- [x] Successfully played along with external music (Spotify testing)
+- [x] Verified intuitive workflow for finding root and improvising
+- [x] Confirmed chord mode enhances musical exploration without added complexity
+
+[x] Implemented **LED underglow hardware system**
+- [x] Wired WS2812B LED chain with proper power distribution (5V RAW)
+- [x] Integrated SN74AHCT125 level shifter for 3.3V → 5V data conversion
+- [x] Added 220Ω series resistor on LED data line
+- [x] Added 1000µF bulk capacitor across LED power rails
+- [x] Added 100nF decoupling capacitor across level shifter VCC/GND
+- [x] Properly configured unused buffer channels (OE high, inputs grounded)
+- [x] Verified stable LED operation on breadboard prototype
+
+[x] Integrated **LED system into firmware**
+- [x] Installed and configured NeoPixel library for CircuitPython
+- [x] Initialized LED system with correct pin (A3) and pixel order
+- [x] Implemented note-triggered LED feedback system
+- [x] Built scalable LED indexing model (pad → LED mapping ready)
+- [x] Verified LED + MIDI + matrix coexist without timing issues
+
+[x] Built **matrix diagnostic system**
+- [x] Created isolated scan test to validate row/column behavior
+- [x] Verified hardware matrix integrity independent of MIDI logic
+- [x] Used diagnostic output to distinguish hardware vs software faults
+
+[x] Identified and resolved **critical matrix scanning bug**
+- [x] Discovered duplicate scan loop causing multiple columns to remain active
+- [x] Diagnosed issue via mismatch between diagnostic test and runtime behavior
+- [x] Removed redundant scan block to restore proper column isolation
+- [x] Confirmed fix eliminated multi-note triggering issue
+
+[x] Finalized **PCB-ready electrical architecture**
+- [x] Completed precise KiCad-style netlist with exact pin mappings
+- [x] Defined LED driver stage with explicit IC pin assignments
+- [x] Standardized power nets (5V_RAW, 3V3, GND)
+- [x] Added proper decoupling and bulk capacitance strategy
+- [x] Defined clean reference designator system (DM vs D conflict resolved)
+- [x] Created PCB placement and routing guidelines
+- [x] Confirmed system is ready for schematic capture and PCB layout
+
 ### In Progress
 
 * [ ] Real life use case testing
-* [ ] Encoder hardware integration
-* [ ] OLED UI system
+* [ ] LED underglow system
+* [ ] Custom PCB
 
 ### Planned
 
-* [ ] Custom PCB
+
 * [ ] Enclosure design (.STL)
-* [ ] LED underglow system
-* [ ] Preset storage
-* [ ] Full menu system
+
 
 ---
 
-## 🧠 Core Features (Planned)
+## 🧠 Core Features (In-Progress)
 
 * 4x4 pad grid (16 keys)
 * Scale-based play mode (default)
-* Chromatic mode
 * Chord mode
 * Transpose + octave shift
 * MIDI channel selection
-* OLED menu interface
+* OLED interface
 * Rotary encoder control
 * LED underglow feedback
 
@@ -222,5 +295,3 @@ This project is in early development, but ideas and feedback are welcome.
 ## 📜 License
 
 TBD
-
-./sync_to_board.sh

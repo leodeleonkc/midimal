@@ -1,6 +1,7 @@
 import time
 import json
 import board
+import neopixel
 import digitalio
 import usb_midi
 import adafruit_midi
@@ -479,6 +480,31 @@ load_settings()
 update_display(force=True)
 
 # ---------------------------------
+# LED setup
+# ---------------------------------
+LED_PIN = board.A3
+NUM_PIXELS = 6
+LED_BRIGHTNESS = 0.12
+
+pixels = neopixel.NeoPixel(
+    LED_PIN,
+    NUM_PIXELS,
+    brightness=LED_BRIGHTNESS,
+    auto_write=True,
+    pixel_order=neopixel.GRB,
+)
+
+pixels.fill((0, 0, 0))
+
+def led_on(index):
+    if index < NUM_PIXELS:
+        pixels[index] = (255, 255, 255)
+
+def led_off(index):
+    if index < NUM_PIXELS:
+        pixels[index] = (0, 0, 0)
+
+# ---------------------------------
 # Matrix setup
 # Current hardware logic:
 # rows = INPUT_PULLUP
@@ -658,6 +684,7 @@ while True:
                 update_display()
 
     # ---- Matrix scan ----
+
     if not scale_mode:
         for col_index, col in enumerate(cols):
             col.value = False
@@ -673,6 +700,8 @@ while True:
                         midi.send(NoteOn(note, 100))
                         print("NOTE ON", note)
                     active_notes[row_index][col_index] = notes
+                    note_index = (row_index * 4) + col_index
+                    led_on(note_index)
 
                 elif not pressed and last_states[row_index][col_index]:
                     notes_off = active_notes[row_index][col_index]
@@ -681,9 +710,13 @@ while True:
                         print("NOTE OFF", note)
                     active_notes[row_index][col_index] = []
 
+                    note_index = (row_index * 4) + col_index
+                    led_off(note_index) 
+
                 last_states[row_index][col_index] = pressed
 
             col.value = True
+
     else:
         for col_index, col in enumerate(cols):
             col.value = False
