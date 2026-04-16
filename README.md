@@ -167,6 +167,106 @@ Part II
 - [x] Created PCB placement and routing guidelines
 - [x] Confirmed system is ready for schematic capture and PCB layout
 
+### Accomplished since 4/8/26 and as of 4/15/26
+
+[x] Implemented **LED underglow system (WS2812 / NeoPixel)**
+- [x] Integrated LED control into matrix note system
+- [x] Mapped pad presses to LED indices
+- [x] Implemented NoteOn/NoteOff LED behavior
+- [x] Verified hardware signal integrity via level shifter (SN74AHCT125)
+- [x] Added brightness control and color configuration
+- [x] Confirmed scalability from single LED → multi-LED chain
+
+[x] Designed and finalized **LED hardware subsystem**
+- [x] Implemented proper 5V power routing for LEDs
+- [x] Integrated level shifting (3.3V → 5V data)
+- [x] Added bulk capacitor (1000µF) for power stability
+- [x] Added decoupling capacitor (0.1µF) at IC
+- [x] Validated safe and stable operation on KB2040
+
+[x] Built **preset save/load system (4 slots)**
+- [x] Assigned presets to second row keys (4–7)
+- [x] Implemented hold-to-save interaction (encoder + hold key)
+- [x] Implemented tap-to-load interaction (encoder + tap key)
+- [x] Added persistent preset storage via JSON
+- [x] Supports saving:
+  - root note
+  - scale
+  - transpose
+  - octave
+  - chord mode
+- [x] Ensured non-destructive workflow (no auto-overwrite)
+
+[x] Designed **OLED feedback system for presets**
+- [x] Fullscreen message overlay system (no HUD redraw)
+- [x] Instant display of:
+  - SAVED > P1
+  - LOADED > P1
+  - EMPTY
+- [x] Eliminated flicker, overlap, and redraw artifacts
+- [x] Implemented atomic rendering (no visual jump)
+- [x] Optimized timing for fast, non-blocking UX
+
+[x] Refined **display architecture (major improvement)**
+- [x] Separated HUD rendering from overlay rendering
+- [x] Eliminated full bitmap redraws during interaction
+- [x] Prevented border/divider “wipe” artifacts
+- [x] Implemented layered display system using groups
+- [x] Improved perceived performance and responsiveness
+
+[x] Fixed **matrix input ghosting / multi-trigger bug**
+- [x] Identified column-related triggering issue
+- [x] Verified hardware vs software root cause
+- [x] Corrected scanning logic for reliable input detection
+- [x] Restored accurate 1:1 key press behavior
+
+[x] Improved **encoder interaction model**
+- [x] Refined session-based control logic
+- [x] Swapped root note and scale interaction:
+  - encoder rotate (held) → root note
+  - top keys (held) → scale selection
+- [x] Maintained intuitive, performance-friendly UX
+
+[x] Built **maintenance boot mode (via encoder)**
+- [x] Hold encoder during boot to enable dev mode
+- [x] Normal boot:
+  - HID/MIDI-only behavior
+  - USB storage disabled
+- [x] Dev mode:
+  - CIRCUITPY drive enabled
+  - Serial enabled
+- [x] Eliminates need for physical boot button access
+
+[x] Improved **USB device identity**
+- [x] Set custom USB name: "MIDIMAL"
+- [x] Clean device recognition on macOS / iOS
+
+[x] Enhanced **development workflow**
+- [x] Implemented file-level sync strategy (faster iteration)
+- [x] Integrated formatting workflow (Black / auto-format)
+- [x] Improved debugging and recovery flow
+
+[x] Finalized **hardware readiness for PCB**
+- [x] Validated full wiring stack:
+  - matrix
+  - OLED (SPI)
+  - encoder
+  - LED subsystem
+- [x] Confirmed firmware/hardware alignment
+- [x] Prepared for PCB design and enclosure integration
+
+[x] Completed **functional prototype build**
+- [x] 3D printed custom enclosure
+- [x] Designed custom keycaps
+- [x] Designed encoder knob
+- [x] Assembled working physical MIDIMAL unit
+
+[x] Achieved **product-level usability milestone**
+- [x] Fast, responsive, real-time playability
+- [x] Reliable state + preset system
+- [x] Clean, intentional interaction model
+- [x] Stable performance across extended use
+
 ### In Progress
 
 * [ ] Real life use case testing
@@ -175,8 +275,7 @@ Part II
 
 ### Planned
 
-
-* [ ] Enclosure design (.STL)
+* [ ] Create a build guide for anyone who wants to build their own MIDIMAL
 
 
 ---

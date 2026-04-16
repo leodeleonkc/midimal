@@ -152,7 +152,6 @@ def show_message(text, duration=MESSAGE_HOLD_TIME):
     global message_text, message_until
     message_text = text
     message_until = time.monotonic() + duration
-    update_display()
 
 
 def message_visible():
@@ -169,7 +168,7 @@ def save_preset_slot(slot_index):
         "chord_mode": chord_mode,
     }
     save_presets_data(data)
-    show_message(f"SAVED → P{slot_index + 1}")
+    show_message(f"SAVED > P{slot_index + 1}")
 
 
 def load_preset_slot(slot_index):
@@ -192,7 +191,7 @@ def load_preset_slot(slot_index):
 
     mark_settings_dirty()
     show_message(
-        f"LOADED → P{slot_index + 1}"
+        f"LOADED > P{slot_index + 1}"
     )  # note: P1 is top left, P4 is bottom right
 
 
@@ -464,7 +463,9 @@ message_bg_palette[1] = 0xFFFFFF
 message_bg = displayio.TileGrid(message_bg_bitmap, pixel_shader=message_bg_palette)
 message_group.append(message_bg)
 
-message_label = label.Label(terminalio.FONT, text="P1 SAVED", color=0xFFFFFF, x=0, y=32)
+message_label = label.Label(
+    terminalio.FONT, text="SAVED > P1", color=0xFFFFFF, x=0, y=32
+)
 message_group.append(message_label)
 
 splash.append(message_group)
