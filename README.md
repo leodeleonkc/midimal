@@ -1,4 +1,4 @@
-# MIDIMAL 🎹
+# MIDIMAL
 
 MIDIMAL is a compact, instrument-first MIDI controller that lives on your desk and calls you to play. Whether it’s a quick escape between tasks or a full creative session, it turns idle moments into musical ideas.
 
@@ -6,18 +6,18 @@ Built around a 4x4 grid of mechanical switches, MIDIMAL prioritizes simplicity, 
 
 ---
 
-## ✨ Vision
+## Vision
 
 MIDIMAL is designed to be:
 
-* 🎵 **Instrument-first** — not a tool, something you *play*
-* ⚡ **Instant-on** — plug in and start creating
-* 🧠 **Simple but powerful** — minimal friction, deep capability
-* 🖐️ **Tactile and satisfying** — like a musical fidget device
+* **Instrument-first** — not a tool, something you *play*
+* **Instant-on** — plug in and start creating
+* **Simple but powerful** — minimal friction, deep capability
+* **Tactile and satisfying** — like a musical fidget device
 
 ---
 
-## 🚧 Project Status
+## Project Status
 
 **Current Stage:** Firmware + Hardware Prototyping (Active Breadboard Build)
 
@@ -52,7 +52,7 @@ MIDIMAL is designed to be:
 - [x] Established reliable firmware sync workflow (repo → board)
 - [x] Identified and corrected diode orientation behavior in hardware
 - [x] Implemented alternate scan logic to match current wiring
-- [x] Fully playable MIDI grid confirmed (tested with Vital 🎛️)
+- [x] Fully playable MIDI grid confirmed (tested with Vital)
 
 Part II
 
@@ -280,7 +280,7 @@ Part II
 
 ---
 
-## 🧠 Core Features (In-Progress)
+## Core Features (In-Progress)
 
 * 4x4 pad grid (16 keys)
 * Scale-based play mode (default)
@@ -294,7 +294,7 @@ Part II
 
 ---
 
-## 🧰 Hardware (Bill of Materials)
+## Hardware (Bill of Materials)
 
 | Component       | Description              |
 | --------------- | ------------------------ |
@@ -309,9 +309,9 @@ Part II
 | Capacitor       | 100nF ceramic x1         |
 ---
 
-## 💻 Firmware
+## Firmware
 
-Current firmware development is focused on validating the musical interaction model before full hardware assembly.
+Current firmware development is focused on validating the musical interaction model.
 
 * Language: CircuitPython
 * MIDI: USB class-compliant MIDI
@@ -332,7 +332,7 @@ Current wiring references for the prototype:
 
 > Note: These are current prototype references and may change as the breadboard build is tested and refined before PCB design.
 
-## 🔌 Getting Started (WIP)
+## Getting Started (WIP)
 
 Instructions coming soon for:
 
@@ -342,7 +342,7 @@ Instructions coming soon for:
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 MIDIMAL/
@@ -353,7 +353,7 @@ MIDIMAL/
 
 ---
 
-## 🎯 Design Philosophy
+## Design Philosophy
 
 MIDIMAL is built around one idea:
 
@@ -368,7 +368,7 @@ Every design decision prioritizes:
 
 ---
 
-## 🛠️ Development Workflow
+## Development Workflow
 
 * Firmware developed locally and synced to board
 * CircuitPython auto-reloads on save
@@ -376,22 +376,22 @@ Every design decision prioritizes:
 
 ---
 
-## 🚀 Roadmap
+## Roadmap
 
-* [ ] Complete firmware v1
-* [ ] Build working prototype
+* [x] Complete firmware v1
+* [x] Build working prototype
+* [x] Design enclosure
 * [ ] Design PCB
-* [ ] Design enclosure
 * [ ] Release build guide
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 This project is in early development, but ideas and feedback are welcome.
 
 ---
 
-## 📜 License
+## License
 
-TBD
+For personal use only. Not to be used for commercial purposes without explicit written conscent from the author.
