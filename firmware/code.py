@@ -1,18 +1,19 @@
-import time
 import json
-import board
-import neopixel
-import digitalio
-import usb_midi
-import adafruit_midi
-import displayio
-import terminalio
 import os
-from fourwire import FourWire
-from adafruit_display_text import label
-import adafruit_displayio_sh1106
-from adafruit_midi.note_on import NoteOn
-from adafruit_midi.note_off import NoteOff
+import time
+
+import board  # pyright: ignore[reportMissingImports]
+import neopixel  # pyright: ignore[reportMissingImports]
+import digitalio  # pyright: ignore[reportMissingImports]
+import usb_midi  # pyright: ignore[reportMissingImports]
+import adafruit_midi  # pyright: ignore[reportMissingImports]
+import displayio  # pyright: ignore[reportMissingImports]
+import terminalio  # pyright: ignore[reportMissingImports]
+from fourwire import FourWire  # pyright: ignore[reportMissingImports]
+from adafruit_display_text import label  # pyright: ignore[reportMissingImports]
+import adafruit_displayio_sh1106  # pyright: ignore[reportMissingImports]
+from adafruit_midi.note_on import NoteOn  # pyright: ignore[reportMissingImports]
+from adafruit_midi.note_off import NoteOff  # pyright: ignore[reportMissingImports]
 
 midi = adafruit_midi.MIDI(midi_out=usb_midi.ports[1], out_channel=0)
 
@@ -45,23 +46,84 @@ DISPLAY_SCALE_NAMES = {
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
-
-def root_note_name():
-    return NOTE_NAMES[ROOT_NOTE % 12]
-
-
 SETTINGS_FILE = "/midimal_settings.json"
 SETTINGS_SAVE_DELAY = 0.4
 
 PRESETS_FILE = "/midimal_presets.json"
 PRESET_HOLD_TIME = 0.65
 MESSAGE_HOLD_TIME = 0.55
+BROWSE_HOLD_TIME = 0.5
 
 settings_dirty = False
 settings_save_at = 0
 
 message_text = ""
 message_until = 0.0
+
+active_scale_index = 2  # pentatonic default
+
+# ---------------------------------
+# Browse mode state
+# ---------------------------------
+browse_mode_active = False
+browse_arm_pending = False
+browse_click_pending = False
+
+browse_root_note = ROOT_NOTE
+browse_scale_index = active_scale_index
+
+# ---------------------------------
+# Encoder / command state
+# ---------------------------------
+button_press_time = None
+hold_command_used = False
+transpose_adjust_active = False
+
+scale_down_latched = False
+scale_up_latched = False
+reset_latched = False
+chord_latched = False
+
+preset_press_time = [None, None, None, None]
+preset_save_triggered = [False, False, False, False]
+
+octave_indicator_until = 0.0
+
+
+def clamp(value, min_value, max_value):
+    return max(min_value, min(max_value, value))
+
+
+def note_name_from_midi(note):
+    return NOTE_NAMES[note % 12]
+
+
+def root_note_name():
+    return note_name_from_midi(ROOT_NOTE)
+
+
+def active_scale_name():
+    return SCALE_ORDER[active_scale_index]
+
+
+def displayed_root_note():
+    return browse_root_note if browse_mode_active else ROOT_NOTE
+
+
+def displayed_scale_index():
+    return browse_scale_index if browse_mode_active else active_scale_index
+
+
+def displayed_root_name():
+    return note_name_from_midi(displayed_root_note())
+
+
+def displayed_scale_name():
+    return SCALE_ORDER[displayed_scale_index()]
+
+
+def browse_indicator_visible():
+    return browse_arm_pending or browse_mode_active
 
 
 def mark_settings_dirty():
@@ -190,24 +252,132 @@ def load_preset_slot(slot_index):
     chord_mode = bool(preset.get("chord_mode", False))
 
     mark_settings_dirty()
-    show_message(
-        f"LOADED > P{slot_index + 1}"
-    )  # note: P1 is top left, P4 is bottom right
+    show_message(f"LOADED > P{slot_index + 1}")
+    update_display()
+
+
+def reset_hold_command_latches():
+    global scale_down_latched
+    global scale_up_latched
+    global reset_latched
+    global chord_latched
+    global preset_press_time
+    global preset_save_triggered
+
+    scale_down_latched = False
+    scale_up_latched = False
+    reset_latched = False
+    chord_latched = False
+    preset_press_time = [None, None, None, None]
+    preset_save_triggered = [False, False, False, False]
+
+
+def clear_hold_state():
+    global button_press_time
+    global hold_command_used
+    global browse_arm_pending
+    global transpose_adjust_active
+
+    button_press_time = None
+    hold_command_used = False
+    browse_arm_pending = False
+    transpose_adjust_active = False
+    reset_hold_command_latches()
+
+
+def cancel_browse_arm():
+    global browse_arm_pending
+    browse_arm_pending = False
+
+
+def register_hold_command():
+    global hold_command_used
+    hold_command_used = True
+    cancel_browse_arm()
+
+
+def arm_browse_mode():
+    global browse_arm_pending
+    global browse_root_note
+    global browse_scale_index
+
+    if browse_arm_pending:
+        return
+
+    browse_arm_pending = True
+    browse_root_note = ROOT_NOTE
+    browse_scale_index = active_scale_index
+    print("BROWSE ARMED")
+    update_display()
+
+
+def enter_browse_mode():
+    global browse_mode_active
+    global browse_arm_pending
+    global browse_click_pending
+
+    browse_mode_active = True
+    browse_arm_pending = False
+    browse_click_pending = False
+    reset_hold_command_latches()
+
+    print("BROWSE MODE:", displayed_scale_name(), displayed_root_name())
+    update_display()
+
+
+def commit_browse_selection():
+    global ROOT_NOTE, active_scale_index
+
+    changed = False
+
+    if ROOT_NOTE != browse_root_note:
+        ROOT_NOTE = browse_root_note
+        changed = True
+
+    if active_scale_index != browse_scale_index:
+        active_scale_index = browse_scale_index
+        changed = True
+
+    if changed:
+        print("BROWSE SET:", root_note_name(), active_scale_name())
+        mark_settings_dirty()
+
+
+def exit_browse_mode():
+    global browse_mode_active
+    global browse_click_pending
+
+    browse_mode_active = False
+    browse_click_pending = False
+    clear_hold_state()
+    update_display()
 
 
 def shift_root(direction):
-    global ROOT_NOTE
-    ROOT_NOTE = 60 + ((ROOT_NOTE - 60 + direction) % 12)
-    print("ROOT_NOTE =", root_note_name(), ROOT_NOTE)
-    mark_settings_dirty()
+    global ROOT_NOTE, browse_root_note
+
+    if browse_mode_active:
+        browse_root_note = 60 + ((browse_root_note - 60 + direction) % 12)
+        print("ROOT PREVIEW =", note_name_from_midi(browse_root_note), browse_root_note)
+    else:
+        ROOT_NOTE = 60 + ((ROOT_NOTE - 60 + direction) % 12)
+        print("ROOT_NOTE =", root_note_name(), ROOT_NOTE)
+        mark_settings_dirty()
+
     update_display()
 
 
 def shift_scale(direction):
-    global active_scale_index
-    active_scale_index = (active_scale_index + direction) % len(SCALE_ORDER)
-    print("ACTIVE_SCALE =", active_scale_name())
-    mark_settings_dirty()
+    global active_scale_index, browse_scale_index
+
+    if browse_mode_active:
+        browse_scale_index = (browse_scale_index + direction) % len(SCALE_ORDER)
+        print("SCALE PREVIEW =", SCALE_ORDER[browse_scale_index])
+    else:
+        active_scale_index = (active_scale_index + direction) % len(SCALE_ORDER)
+        print("ACTIVE_SCALE =", active_scale_name())
+        mark_settings_dirty()
+
     update_display()
 
 
@@ -215,7 +385,7 @@ def reset_to_defaults():
     global ROOT_NOTE, active_scale_index, TRANSPOSE, OCTAVE_SHIFT, chord_mode
 
     ROOT_NOTE = 60
-    active_scale_index = 2  # pentatonic
+    active_scale_index = 2
     TRANSPOSE = 0
     OCTAVE_SHIFT = 0
     chord_mode = False
@@ -233,39 +403,65 @@ def toggle_chord_mode():
     update_display()
 
 
-active_scale_index = 2  # pentatonic default
-LONG_PRESS_TIME = 0.45
+def get_scale_note(index, root_note=None, scale_index=None):
+    if root_note is None:
+        root_note = displayed_root_note()
+    if scale_index is None:
+        scale_index = displayed_scale_index()
 
-
-def active_scale_name():
-    return SCALE_ORDER[active_scale_index]
-
-
-def clamp(value, min_value, max_value):
-    return max(min_value, min(max_value, value))
-
-
-def get_scale_note(index):
-    scale = SCALES[active_scale_name()]
+    scale = SCALES[SCALE_ORDER[scale_index]]
     scale_len = len(scale)
     octave = index // scale_len
     degree = index % scale_len
-    return ROOT_NOTE + scale[degree] + (octave * 12) + TRANSPOSE + (OCTAVE_SHIFT * 12)
+    return root_note + scale[degree] + (octave * 12) + TRANSPOSE + (OCTAVE_SHIFT * 12)
 
 
-def get_chord_notes(index):
+def get_chord_notes(index, root_note=None, scale_index=None):
     return [
-        get_scale_note(index),
-        get_scale_note(index + 2),
-        get_scale_note(index + 4),
+        get_scale_note(index, root_note, scale_index),
+        get_scale_note(index + 2, root_note, scale_index),
+        get_scale_note(index + 4, root_note, scale_index),
     ]
 
 
 def current_notes(row, col):
     note_index = (row * 4) + col
+
+    if browse_mode_active:
+        root_note = browse_root_note
+        scale_index = browse_scale_index
+    else:
+        root_note = ROOT_NOTE
+        scale_index = active_scale_index
+
     if chord_mode:
-        return get_chord_notes(note_index)
-    return [get_scale_note(note_index)]
+        return get_chord_notes(note_index, root_note, scale_index)
+
+    return [get_scale_note(note_index, root_note, scale_index)]
+
+
+def release_notes_for_key(row_index, col_index):
+    notes_off = active_notes[row_index][col_index]
+
+    if notes_off:
+        for note in notes_off:
+            midi.send(NoteOff(note, 0))
+        active_notes[row_index][col_index] = []
+
+    note_index = (row_index * 4) + col_index
+    led_off(note_index)
+
+
+def note_on_for_key(row_index, col_index):
+    notes = current_notes(row_index, col_index)
+
+    for note in notes:
+        midi.send(NoteOn(note, 100))
+
+    active_notes[row_index][col_index] = notes
+
+    note_index = (row_index * 4) + col_index
+    led_on(note_index)
 
 
 def mark_activity():
@@ -294,9 +490,9 @@ spi = board.SPI()
 
 display_bus = FourWire(
     spi,
-    command=board.D0,  # DC
-    chip_select=board.D1,  # CS
-    reset=board.D10,  # RES
+    command=board.D0,
+    chip_select=board.D1,
+    reset=board.D10,
     baudrate=1000000,
 )
 
@@ -362,11 +558,10 @@ DISPLAY_X_OFFSET = 0
 VISIBLE_W = 128
 VISIBLE_H = 64
 
-# HUD drawing surface
 hud_bitmap = displayio.Bitmap(132, 64, 2)
 hud_palette = displayio.Palette(2)
-hud_palette[0] = 0x000000  # black
-hud_palette[1] = 0xFFFFFF  # white
+hud_palette[0] = 0x000000
+hud_palette[1] = 0xFFFFFF
 
 hud_bg = displayio.TileGrid(hud_bitmap, pixel_shader=hud_palette)
 splash = displayio.Group(x=DISPLAY_X_OFFSET, y=0)
@@ -397,28 +592,22 @@ def draw_vline(bitmap, x, y, h, color, dotted=False):
 def draw_static_hud():
     draw_rect(hud_bitmap, 0, 0, 132, 64, 0)
 
-    # Draw only inside visible 128px area
     left = 2
     top = 2
     right = 125
     bottom = 61
 
-    # Outer border
     draw_hline(hud_bitmap, left, top, right - left + 1, 1)
     draw_hline(hud_bitmap, left, bottom, right - left + 1, 1)
     draw_vline(hud_bitmap, left, top, bottom - top + 1, 1)
     draw_vline(hud_bitmap, right, top, bottom - top + 1, 1)
 
-    # Divider lines
     draw_hline(hud_bitmap, 10, 24, 108, 1, dotted=True)
-
-    # Center divider with balanced spacing
     draw_vline(hud_bitmap, 57, 30, 24, 1, dotted=True)
 
 
 draw_static_hud()
 
-# Top scale text
 scale_label = label.Label(terminalio.FONT, text="PENTATONIC", color=0xFFFFFF)
 splash.append(scale_label)
 
@@ -430,7 +619,6 @@ chord_label = label.Label(
 )
 splash.append(chord_label)
 
-# Section labels
 octave_title = label.Label(terminalio.FONT, text="OCTAVE", color=0xFFFFFF, x=14, y=35)
 splash.append(octave_title)
 
@@ -439,7 +627,6 @@ transpose_title = label.Label(
 )
 splash.append(transpose_title)
 
-# Values
 octave_value = label.Label(terminalio.FONT, text="+0", color=0xFFFFFF, x=20, y=49)
 splash.append(octave_value)
 
@@ -475,37 +662,37 @@ draw_rect(message_bg_bitmap, 0, 0, 132, 64, 0)
 last_display_scale = None
 last_display_transpose = None
 last_display_octave = None
-last_display_scale_mode = None
+last_display_browse_indicator = None
+last_display_browse_mode = None
 last_display_octave_active = None
 last_display_transpose_active = None
 last_display_chord_mode = None
 last_display_message_text = None
 last_display_message_visible = None
 
-scale_mode = False
-octave_adjust_active = False
-transpose_indicator_until = 0
-
 
 def update_display(force=False):
     global last_display_scale
     global last_display_transpose
     global last_display_octave
-    global last_display_scale_mode
+    global last_display_browse_indicator
+    global last_display_browse_mode
     global last_display_octave_active
     global last_display_transpose_active
     global last_display_chord_mode
     global last_display_message_text
     global last_display_message_visible
-    global chord_mode
 
-    base_scale_name = DISPLAY_SCALE_NAMES[active_scale_name()].upper()
-    scale_text = f"{root_note_name()} {base_scale_name}"
+    scale_text = (
+        f"{displayed_root_name()} "
+        f"{DISPLAY_SCALE_NAMES[displayed_scale_name()].upper()}"
+    )
     transpose_text = f"{TRANSPOSE:+d}"
     octave_text = f"{OCTAVE_SHIFT:+d}"
 
-    octave_active = time.monotonic() < transpose_indicator_until
-    transpose_active = octave_adjust_active
+    octave_active = time.monotonic() < octave_indicator_until
+    transpose_active = transpose_adjust_active
+    browse_indicator = browse_indicator_visible()
 
     current_message_visible = message_visible()
     current_message_text = message_text
@@ -515,7 +702,8 @@ def update_display(force=False):
         or scale_text != last_display_scale
         or TRANSPOSE != last_display_transpose
         or OCTAVE_SHIFT != last_display_octave
-        or scale_mode != last_display_scale_mode
+        or browse_indicator != last_display_browse_indicator
+        or browse_mode_active != last_display_browse_mode
         or octave_active != last_display_octave_active
         or transpose_active != last_display_transpose_active
         or chord_mode != last_display_chord_mode
@@ -523,14 +711,13 @@ def update_display(force=False):
         or current_message_text != last_display_message_text
     ):
         if current_message_visible:
-            # prepare message FIRST (while hidden)
             message_label.text = current_message_text
             message_label.x = (VISIBLE_W - (len(current_message_text) * 6)) // 2
             message_label.y = 32
 
-            # THEN show it
             message_group.hidden = False
 
+            scale_label.hidden = True
             scale_arrow.hidden = True
             chord_label.hidden = True
             octave_title.hidden = True
@@ -543,12 +730,13 @@ def update_display(force=False):
         else:
             message_group.hidden = True
 
+            scale_label.hidden = False
             scale_label.text = scale_text
             scale_label.x = (VISIBLE_W - (len(scale_text) * 6)) // 2
             scale_label.y = 14
 
             scale_arrow.hidden = False
-            scale_arrow.text = ">" if scale_mode else ""
+            scale_arrow.text = ">" if browse_indicator else ""
             scale_arrow.x = scale_label.x - 10
             scale_arrow.y = 14
 
@@ -591,7 +779,8 @@ def update_display(force=False):
         last_display_scale = scale_text
         last_display_transpose = TRANSPOSE
         last_display_octave = OCTAVE_SHIFT
-        last_display_scale_mode = scale_mode
+        last_display_browse_indicator = browse_indicator
+        last_display_browse_mode = browse_mode_active
         last_display_octave_active = octave_active
         last_display_transpose_active = transpose_active
         last_display_chord_mode = chord_mode
@@ -601,6 +790,8 @@ def update_display(force=False):
 
 show_startup_splash()
 load_settings()
+browse_root_note = ROOT_NOTE
+browse_scale_index = active_scale_index
 update_display(force=True)
 display.root_group = splash
 
@@ -634,7 +825,6 @@ def led_off(index):
 
 # ---------------------------------
 # Matrix setup
-# Current hardware logic:
 # rows = INPUT_PULLUP
 # cols = OUTPUT (drive LOW one at a time)
 # ---------------------------------
@@ -670,7 +860,7 @@ active_notes = [
 ]
 
 # ---------------------------------
-# Encoder setup (also used for scale selection)
+# Encoder setup
 # ---------------------------------
 enc_a = digitalio.DigitalInOut(board.A0)
 enc_a.direction = digitalio.Direction.INPUT
@@ -685,94 +875,71 @@ enc_sw.direction = digitalio.Direction.INPUT
 enc_sw.pull = digitalio.Pull.UP
 
 last_sw = enc_sw.value
-
 last_ab = (int(enc_a.value) << 1) | int(enc_b.value)
 encoder_accum = 0
-
-button_press_time = None
-encoder_rotated_while_pressed = False
-button_used_with_key = False
-scale_down_latched = False
-scale_up_latched = False
-reset_latched = False
-chord_latched = False
-
-preset_press_time = [None, None, None, None]
-preset_save_triggered = [False, False, False, False]
 
 mark_activity()
 
 print("MIDIMAL boot")
 print("ACTIVE_SCALE =", active_scale_name())
 
-# ---------------------------------
-# Main loop
-# ---------------------------------
-SESSION_HOLD_TIME = 0.5
-
 while True:
     now = time.monotonic()
-
-    # ---- Button state tracking ----
     sw_pressed = not enc_sw.value
 
+    # ---------------------------------
+    # Encoder button edge handling
+    # ---------------------------------
     if sw_pressed and last_sw:
-        button_press_time = now
-        scale_mode = False
-        octave_adjust_active = False
-        encoder_rotated_while_pressed = False
-        button_used_with_key = False
-        scale_down_latched = False
-        scale_up_latched = False
-        reset_latched = False
-        chord_latched = False
-        preset_press_time = [None, None, None, None]
-        preset_save_triggered = [False, False, False, False]
         mark_activity()
 
+        if browse_mode_active:
+            browse_click_pending = True
+        else:
+            button_press_time = now
+            hold_command_used = False
+            browse_arm_pending = False
+            transpose_adjust_active = False
+            reset_hold_command_latches()
+
     elif not sw_pressed and not last_sw:
-        if scale_mode:
-            print("SCALE/ROOT SESSION CONFIRMED")
+        if browse_mode_active:
+            if browse_click_pending:
+                browse_click_pending = False
+                commit_browse_selection()
+                exit_browse_mode()
+        else:
+            if browse_arm_pending and not hold_command_used:
+                enter_browse_mode()
+            else:
+                clear_hold_state()
+                update_display()
 
-        button_press_time = None
-        scale_mode = False
-        octave_adjust_active = False
-        encoder_rotated_while_pressed = False
-        button_used_with_key = False
-        scale_down_latched = False
-        scale_up_latched = False
-        reset_latched = False
-        chord_latched = False
-        preset_press_time = [None, None, None, None]
-        preset_save_triggered = [False, False, False, False]
-
-        if settings_dirty:
-            save_settings()
-
-        update_display()
+            if settings_dirty:
+                save_settings()
 
     last_sw = enc_sw.value
 
-    # ---- Session activation ----
+    # ---------------------------------
+    # Hold-to-arm browse (but do not enter yet)
+    # ---------------------------------
     if (
         sw_pressed
+        and not browse_mode_active
         and button_press_time is not None
-        and not scale_mode
-        and not octave_adjust_active
-        and not encoder_rotated_while_pressed
-        and (now - button_press_time) >= SESSION_HOLD_TIME
+        and not hold_command_used
+        and (now - button_press_time) >= BROWSE_HOLD_TIME
     ):
-        scale_mode = True
-        print("SCALE/ROOT SESSION:", active_scale_name(), root_note_name())
-        update_display()
+        arm_browse_mode()
 
-    # ---- Encoder handling ----
+    # ---------------------------------
+    # Encoder rotation handling
+    # ---------------------------------
     current_ab = (int(enc_a.value) << 1) | int(enc_b.value)
 
     if current_ab != last_ab:
         transition = (last_ab << 2) | current_ab
 
-        # Valid quadrature transitions only
         if transition in (0b0001, 0b0111, 0b1110, 0b1000):
             encoder_accum += 1
         elif transition in (0b0010, 0b1011, 0b1101, 0b0100):
@@ -791,18 +958,12 @@ while True:
         if direction != 0:
             mark_activity()
 
-            if scale_mode:
+            if browse_mode_active:
                 shift_root(direction)
 
-            elif octave_adjust_active:
-                TRANSPOSE = clamp(TRANSPOSE + direction, -12, 12)
-                print("TRANSPOSE =", TRANSPOSE)
-                mark_settings_dirty()
-                update_display()
-
             elif sw_pressed:
-                encoder_rotated_while_pressed = True
-                octave_adjust_active = True
+                register_hold_command()
+                transpose_adjust_active = True
                 TRANSPOSE = clamp(TRANSPOSE + direction, -12, 12)
                 print("TRANSPOSE =", TRANSPOSE)
                 mark_settings_dirty()
@@ -810,134 +971,143 @@ while True:
 
             else:
                 OCTAVE_SHIFT = clamp(OCTAVE_SHIFT + direction, -2, 2)
-                transpose_indicator_until = now + 0.35
+                octave_indicator_until = now + 0.35
                 print("OCTAVE_SHIFT =", OCTAVE_SHIFT)
                 mark_settings_dirty()
                 update_display()
 
-    # ---- Matrix scan ----
-    if not scale_mode:
-        for col_index, col in enumerate(cols):
-            col.value = False
-            time.sleep(0.0005)
+    # ---------------------------------
+    # Matrix scan
+    # ---------------------------------
+    for col_index, col in enumerate(cols):
+        col.value = False
+        time.sleep(0.0005)
 
-            for row_index, row in enumerate(rows):
-                pressed = not row.value
-                notes = current_notes(row_index, col_index)
+        for row_index, row in enumerate(rows):
+            pressed = not row.value
+            was_pressed = last_states[row_index][col_index]
 
-                if pressed and not last_states[row_index][col_index]:
+            is_browse_scale_down_key = (
+                browse_mode_active and row_index == 0 and col_index == 0
+            )
+            is_browse_scale_up_key = (
+                browse_mode_active and row_index == 0 and col_index == 3
+            )
+
+            is_hold_preset_key = (
+                sw_pressed and not browse_mode_active and row_index == 1
+            )
+            is_hold_chord_key = (
+                sw_pressed
+                and not browse_mode_active
+                and row_index == 3
+                and col_index == 0
+            )  # bottom left = chord
+            is_hold_reset_key = (
+                sw_pressed
+                and not browse_mode_active
+                and row_index == 3
+                and col_index == 3
+            )  # bottom right = reset
+
+            if browse_mode_active:
+                key_is_playable = (
+                    not is_browse_scale_down_key and not is_browse_scale_up_key
+                )
+            else:
+                key_is_playable = not sw_pressed
+
+            if key_is_playable:
+                if pressed and not was_pressed:
                     mark_activity()
-                    for note in notes:
-                        midi.send(NoteOn(note, 100))
-                    active_notes[row_index][col_index] = notes
+                    note_on_for_key(row_index, col_index)
 
-                    note_index = (row_index * 4) + col_index
-                    led_on(note_index)
-
-                elif not pressed and last_states[row_index][col_index]:
-                    notes_off = active_notes[row_index][col_index]
-                    for note in notes_off:
-                        midi.send(NoteOff(note, 0))
-                    active_notes[row_index][col_index] = []
-
-                    note_index = (row_index * 4) + col_index
-                    led_off(note_index)
+                elif not pressed and was_pressed:
+                    release_notes_for_key(row_index, col_index)
 
                 last_states[row_index][col_index] = pressed
+                continue
 
-            col.value = True
+            if not pressed and was_pressed:
+                release_notes_for_key(row_index, col_index)
 
-    else:
-        for col_index, col in enumerate(cols):
-            col.value = False
-            time.sleep(0.0005)
+            # ---- Browse mode scale preview keys ----
+            if is_browse_scale_down_key or is_browse_scale_up_key:
+                if pressed and not was_pressed:
+                    mark_activity()
 
-            for row_index, row in enumerate(rows):
-                pressed = not row.value
+                    if is_browse_scale_down_key and not scale_down_latched:
+                        shift_scale(-1)
+                        scale_down_latched = True
 
-                is_scale_down_key = row_index == 0 and col_index == 0
-                is_scale_up_key = row_index == 0 and col_index == 3
-                is_preset_key = row_index == 1
-                is_reset_key = row_index == 3 and col_index == 0
-                is_chord_key = row_index == 3 and col_index == 3
+                    elif is_browse_scale_up_key and not scale_up_latched:
+                        shift_scale(1)
+                        scale_up_latched = True
 
-                if is_preset_key:
-                    slot_index = 3 - col_index
-
-                    if pressed and not last_states[row_index][col_index]:
-                        mark_activity()
-                        preset_press_time[slot_index] = now
-                        preset_save_triggered[slot_index] = False
-
-                    elif pressed and last_states[row_index][col_index]:
-                        if (
-                            preset_press_time[slot_index] is not None
-                            and not preset_save_triggered[slot_index]
-                            and (now - preset_press_time[slot_index])
-                            >= PRESET_HOLD_TIME
-                        ):
-                            save_preset_slot(slot_index)
-                            preset_save_triggered[slot_index] = True
-
-                    elif not pressed and last_states[row_index][col_index]:
-                        if not preset_save_triggered[slot_index]:
-                            load_preset_slot(slot_index)
-
-                        preset_press_time[slot_index] = None
-                        preset_save_triggered[slot_index] = False
-
-                    active_notes[row_index][col_index] = None
-                    last_states[row_index][col_index] = pressed
-                    continue
-
-                if is_scale_down_key or is_scale_up_key or is_reset_key or is_chord_key:
-                    if pressed and not last_states[row_index][col_index]:
-                        mark_activity()
-
-                        if is_scale_down_key and not scale_down_latched:
-                            shift_scale(-1)
-                            scale_down_latched = True
-
-                        elif is_scale_up_key and not scale_up_latched:
-                            shift_scale(1)
-                            scale_up_latched = True
-
-                        elif is_reset_key and not reset_latched:
-                            reset_to_defaults()
-                            reset_latched = True
-
-                        elif is_chord_key and not chord_latched:
-                            toggle_chord_mode()
-                            chord_latched = True
-
-                    elif not pressed and last_states[row_index][col_index]:
-                        if is_scale_down_key:
-                            scale_down_latched = False
-                        elif is_scale_up_key:
-                            scale_up_latched = False
-                        elif is_reset_key:
-                            reset_latched = False
-                        elif is_chord_key:
-                            chord_latched = False
-
-                    active_notes[row_index][col_index] = None
-                    last_states[row_index][col_index] = pressed
-                    continue
-
-                # In scale/root session, all note keys are suppressed
-                if not pressed and last_states[row_index][col_index]:
-                    note_off = active_notes[row_index][col_index]
-                    if note_off is not None:
-                        if isinstance(note_off, list):
-                            for note in note_off:
-                                midi.send(NoteOff(note, 0))
-                        else:
-                            midi.send(NoteOff(note_off, 0))
-                    active_notes[row_index][col_index] = None
+                elif not pressed and was_pressed:
+                    if is_browse_scale_down_key:
+                        scale_down_latched = False
+                    elif is_browse_scale_up_key:
+                        scale_up_latched = False
 
                 last_states[row_index][col_index] = pressed
+                continue
 
-            col.value = True
+            # ---- Hold-command preset keys ----
+            if is_hold_preset_key:
+                slot_index = 3 - col_index
+
+                if pressed and not was_pressed:
+                    mark_activity()
+                    register_hold_command()
+                    preset_press_time[slot_index] = now
+                    preset_save_triggered[slot_index] = False
+
+                elif pressed and was_pressed:
+                    if (
+                        preset_press_time[slot_index] is not None
+                        and not preset_save_triggered[slot_index]
+                        and (now - preset_press_time[slot_index]) >= PRESET_HOLD_TIME
+                    ):
+                        save_preset_slot(slot_index)
+                        preset_save_triggered[slot_index] = True
+
+                elif not pressed and was_pressed:
+                    if not preset_save_triggered[slot_index]:
+                        load_preset_slot(slot_index)
+
+                    preset_press_time[slot_index] = None
+                    preset_save_triggered[slot_index] = False
+
+                last_states[row_index][col_index] = pressed
+                continue
+
+            # ---- Hold-command bottom row shortcuts ----
+            if is_hold_chord_key or is_hold_reset_key:
+                if pressed and not was_pressed:
+                    mark_activity()
+                    register_hold_command()
+
+                    if is_hold_chord_key and not chord_latched:
+                        toggle_chord_mode()
+                        chord_latched = True
+
+                    elif is_hold_reset_key and not reset_latched:
+                        reset_to_defaults()
+                        reset_latched = True
+
+                elif not pressed and was_pressed:
+                    if is_hold_chord_key:
+                        chord_latched = False
+                    elif is_hold_reset_key:
+                        reset_latched = False
+
+                last_states[row_index][col_index] = pressed
+                continue
+
+            last_states[row_index][col_index] = pressed
+
+        col.value = True
 
     if settings_dirty and now >= settings_save_at:
         save_settings()

@@ -4,6 +4,10 @@ MIDIMAL is a compact, instrument-first MIDI controller that lives on your desk a
 
 Built around a 4x4 grid of mechanical switches, MIDIMAL prioritizes simplicity, playability, and immediate feedback.
 
+<p align="center">
+  <img src="docs/3d_render.png" alt="MIDIMAL 3D render" width="520" />
+</p>
+
 ---
 
 ## Vision
@@ -266,6 +270,65 @@ Part II
 - [x] Reliable state + preset system
 - [x] Clean, intentional interaction model
 - [x] Stable performance across extended use
+
+### Accomplished today 4/19/26
+
+[x] Refactored **Control Interaction Model (Major UX Upgrade)**
+- [x] Rebuilt encoder interaction system based on real-world playtesting
+- [x] Split previous “all-in-one” control mode into two distinct systems:
+  - [x] Mode A — Latched Browse Mode (for musical auditioning)
+  - [x] Mode B — Hold-Command Shortcuts (for intentional actions)
+
+
+[x] Mode A  **Latched Browse Mode (New Behavior)**
+- [x] Entered by press + hold encoder → release
+- [x] Added “browse armed” state to prevent accidental activation
+- [x] Encoder behavior:
+  - [x] Rotate → preview root note
+  - [x] Top-left / top-right keys → preview scale
+- [x] All other pads remain fully playable for real-time musical auditioning
+- [x] Pads use previewed root + scale, not committed values
+- [x] Encoder click → confirm selection + exit mode
+
+
+[x] Mode B **Hold-Command Shortcuts (Fixed & Restored)**
+- [x] Now only active while encoder is physically held
+- [x] Fully separated from browse mode to eliminate conflicts
+- [x] Actions:
+  - [x] Hold + rotate → transpose
+  - [x] Hold + bottom left → toggle chord mode (fixed mapping)
+  - [x] Hold + bottom right → reset to defaults (fixed mapping)
+  - [x] Hold + second row → preset load / save
+- [x] Any hold-command interaction cancels browse activation
+
+[x] Core System Improvement
+- [x] Introduced browse arm state:
+  - [x] Holding encoder long enough shows UI indicator (arrow)
+  - [x] Browse mode only activates on release, not during hold
+- [x] Prevents command conflicts and enables accurate note auditioning
+- [x] Established clear interaction rule:
+  - [x] Hold = command layer
+  - [x] Release after hold = browse mode
+
+
+[x] Codebase **Cleanup & Stability Improvements**
+- [x] Removed legacy latched-control logic that caused input conflicts
+- [x] Simplified and clarified state management:
+  - [x] browse_mode_active
+  - [x] browse_arm_pending
+  - [x] hold_command_used
+- [x] Improved input priority handling:
+  - [x] Hold commands always take precedence during press
+- [x] Ensured no regression in:
+  - [x] MIDI note behavior
+  - [x] Preset system
+  - [x] OLED display updates
+  - [x] LED feedback
+  - [x] Settings persistence
+
+- [x] Root + scale selection is now musically intuitive and playable by ear
+- [x] Command actions are predictable and intentional
+- [x] Overall controller feels significantly more like an instrument, not a tool
 
 ### In Progress
 

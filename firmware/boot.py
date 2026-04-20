@@ -16,12 +16,12 @@
 # # Optional: stop host filesystem touches from auto-reloading code.py
 # supervisor.runtime.autoreload = False
 
-import board
-import digitalio
-import storage
-import usb_cdc
-import usb_midi
-import supervisor
+import board  # pyright: ignore[reportMissingImports]
+import digitalio  # pyright: ignore[reportMissingImports]
+import storage  # pyright: ignore[reportMissingImports]
+import usb_cdc  # pyright: ignore[reportMissingImports]
+import usb_midi  # pyright: ignore[reportMissingImports]
+import supervisor  # pyright: ignore[reportMissingImports]
 
 supervisor.set_usb_identification(manufacturer="Leo de Leon", product="MIDIMAL")
 
